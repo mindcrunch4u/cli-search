@@ -1,6 +1,15 @@
+
+![demo gif](https://github.com/mindcrunch4u/cli-search/blob/main/about/stay%20in%20cli.gif)
+
 ## Preparation
 
 ```
+git clone https://github.com/mindcrunch4u/cli-search
+cd cli-search
+
+python -m venv env
+source env/bin/activate
+
 pip install -r requirements.txt
 chmox +x howto
 ```
