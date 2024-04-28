@@ -77,6 +77,8 @@ def get_completion(input_string, http_proxy=None):
     client = create_client(openai_key, http_proxy)
     completion_text = None
     default_model = "gpt-3.5-turbo-0125"
+    default_model = "gpt-3.5-turbo-16k-0613"
+    default_model = "gpt-3.5-turbo-instruct"
     completion = client.chat.completions.create(
       model=default_model,
       messages=[
@@ -84,7 +86,16 @@ def get_completion(input_string, http_proxy=None):
         {"role": "user", "content": "{}".format(input_string)}
       ]
     )
-    completion_text = completion.choices[0].message.content
+    if completion.choices[0].text:
+        completion_text = completion.choices[0].text
+    elif completion.choices[0].message:
+        completion_text = completion.choices[0].message.content
+    else:
+        print("Something went wrong, here is the response: {} {}".format(
+            os.linesep,
+            completion
+            ))
+        completion_text = None
     return completion_text
 
 
@@ -113,7 +124,7 @@ def main():
                 input_string=arg_string,
                 http_proxy=http_proxy
                 )
-    print(text)
+    print(text.encode('utf-8').decode('unicode_escape'))
 
 
 if __name__ == "__main__":
