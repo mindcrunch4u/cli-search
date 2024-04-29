@@ -11,6 +11,10 @@ from openai import OpenAI
 
 base_url="https://api.openai.com/v1"
 base_url="https://hk.xty.app/v1"
+is_stream_completion = True
+default_model = "gpt-3.5-turbo-0125"
+default_model = "gpt-3.5-turbo-16k-0613"
+default_model = "gpt-3.5-turbo-instruct"
 
 openai_key = os.environ["OPENAI_KEY"]
 
@@ -42,18 +46,24 @@ class Spinner:
             print('\r', end='', flush=True)
             self.is_terminated = True
 
-    def __enter__(self):
+    def enter(self):
         self.enter_time = datetime.datetime.now().replace(microsecond=0)
         self.is_terminated = False
         self.busy = True
         threading.Thread(target=self.spinner_task).start()
 
-    def __exit__(self, exception, value, tb):
+    def exit(self):
         self.busy = False
         time.sleep(self.delay)
         while not self.is_terminated:
             pass
         print('\r' + ' '*60, flush=True)
+
+    def __enter__(self):
+        self.enter()
+
+    def __exit__(self, exception, value, tb):
+        self.exit()
         if exception is not None:
             return False
 
@@ -88,9 +98,6 @@ def create_client(openai_key, http_proxy=None):
 def get_completion(input_string, http_proxy=None):
     client = create_client(openai_key, http_proxy)
     completion_text = None
-    default_model = "gpt-3.5-turbo-0125"
-    default_model = "gpt-3.5-turbo-16k-0613"
-    default_model = "gpt-3.5-turbo-instruct"
     completion = client.chat.completions.create(
       model=default_model,
       messages=[
@@ -109,6 +116,34 @@ def get_completion(input_string, http_proxy=None):
             ))
         completion_text = None
     return completion_text
+
+
+def get_completion_streamed(input_string, http_proxy=None):
+    client = create_client(openai_key, http_proxy)
+    completion_text = None
+
+    spinner = Spinner()
+    spinner.enter()
+    is_spinner_enabled = True
+
+    completion = client.chat.completions.create(
+      model=default_model,
+      messages=[
+        {"role": "system", "content": default_system_prompt },
+        {"role": "user", "content": "{}".format(input_string)}
+      ],
+      stream=True
+      )
+
+
+    for response in completion:
+        if is_spinner_enabled:
+            spinner.exit()
+            is_spinner_enabled = False
+        sys.stdout.write(response.choices[0].text)
+        sys.stdout.flush()
+
+    print("{}".format(os.linesep))
 
 
 def usage():
@@ -131,13 +166,19 @@ def main():
     http_proxy = set_proxy_environment_variables()[0]
     if http_proxy:
         http_proxy = "http://{}".format(http_proxy)
-    with Spinner():
-        text = get_completion(
-                input_string=arg_string,
-                http_proxy=http_proxy
-                )
-    print(text.encode('utf-8').decode('unicode_escape'))
-    print("")
+    if not is_stream_completion:
+        with Spinner():
+            text = get_completion(
+                    input_string=arg_string,
+                    http_proxy=http_proxy
+                    )
+        print(text.encode('utf-8').decode('unicode_escape'))
+        print("")
+    else:
+        get_completion_streamed(
+                    input_string=arg_string,
+                    http_proxy=http_proxy
+                    )
 
 
 if __name__ == "__main__":
