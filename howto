@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 
 import sys
+import datetime
 import os
 import urllib
 import httpx
 import threading
 import time
 from openai import OpenAI
+
+base_url="https://api.openai.com/v1"
+base_url="https://hk.xty.app/v1"
 
 openai_key = os.environ["OPENAI_KEY"]
 
@@ -16,7 +20,9 @@ template = """You are a Linux Shell expert, return a line or lines of commands b
 
 class Spinner:
     busy = False
-    delay = 0.3
+    delay = 0.5
+    enter_time = 0
+    is_terminated = False
 
     @staticmethod
     def spinning_cursor():
@@ -29,19 +35,25 @@ class Spinner:
 
     def spinner_task(self):
         while self.busy:
-            sys.stdout.write(next(self.spinner_generator))
-            sys.stdout.flush()
+            time_elapse = datetime.datetime.now().replace(microsecond=0) - self.enter_time
+            time_elapse_string = "[{}] ".format(time_elapse)
+            print(time_elapse_string + next(self.spinner_generator), end='', flush=True)
             time.sleep(self.delay)
-            sys.stdout.write('\b')
-            sys.stdout.flush()
+            print('\r', end='', flush=True)
+            self.is_terminated = True
 
     def __enter__(self):
+        self.enter_time = datetime.datetime.now().replace(microsecond=0)
+        self.is_terminated = False
         self.busy = True
         threading.Thread(target=self.spinner_task).start()
 
     def __exit__(self, exception, value, tb):
         self.busy = False
         time.sleep(self.delay)
+        while not self.is_terminated:
+            pass
+        print('\r' + ' '*60, flush=True)
         if exception is not None:
             return False
 
@@ -60,7 +72,7 @@ def set_proxy_environment_variables():
 
 
 def create_client(openai_key, http_proxy=None):
-    base_url="https://hk.xty.app/v1"
+    global base_url
     client = OpenAI(
         base_url=base_url,
         api_key=openai_key,
@@ -125,6 +137,7 @@ def main():
                 http_proxy=http_proxy
                 )
     print(text.encode('utf-8').decode('unicode_escape'))
+    print("")
 
 
 if __name__ == "__main__":
