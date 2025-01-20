@@ -9,18 +9,17 @@ import threading
 import time
 from openai import OpenAI
 
-base_url="https://api.openai.com/v1"
-base_url="https://hk.xty.app/v1"
+base_url = "https://api.openai.com/v1"
+base_url = "https://hk.xty.app/v1"
 is_stream_completion = True
 default_model = "gpt-3.5-turbo-0125"
 default_model = "gpt-3.5-turbo-16k-0613"
 default_model = "gpt-3.5-turbo-instruct"
-
 openai_key = os.environ["OPENAI_KEY"]
-
 default_system_prompt = "You are a helpful assistant. You are good at computer technologies. You will help the users with their computer related questions."
 
 template = """You are a Linux Shell expert, return a line or lines of commands based on the following requirements, comments starting with hashes (#) are allowed. Return only commands and comments only, no more no less. Use plain text format, avoid markdown, or markdown code "```" (accent grave) formatting. Explain options used in the commands in the end in the form of comments."""
+
 
 class Spinner:
     busy = False
@@ -30,20 +29,24 @@ class Spinner:
 
     @staticmethod
     def spinning_cursor():
-        while 1: 
-            for cursor in '|/-\\': yield cursor
+        while 1:
+            for cursor in "|/-\\":
+                yield cursor
 
     def __init__(self, delay=None):
         self.spinner_generator = self.spinning_cursor()
-        if delay and float(delay): self.delay = delay
+        if delay and float(delay):
+            self.delay = delay
 
     def spinner_task(self):
         while self.busy:
-            time_elapse = datetime.datetime.now().replace(microsecond=0) - self.enter_time
+            time_elapse = (
+                datetime.datetime.now().replace(microsecond=0) - self.enter_time
+            )
             time_elapse_string = "[{}] ".format(time_elapse)
-            print(time_elapse_string + next(self.spinner_generator), end='', flush=True)
+            print(time_elapse_string + next(self.spinner_generator), end="", flush=True)
             time.sleep(self.delay)
-            print('\r', end='', flush=True)
+            print("\r", end="", flush=True)
             self.is_terminated = True
 
     def enter(self):
@@ -57,7 +60,7 @@ class Spinner:
         time.sleep(self.delay)
         while not self.is_terminated:
             pass
-        print('\r' + ' '*60, flush=True)
+        print("\r" + " " * 60, flush=True)
 
     def __enter__(self):
         self.enter()
@@ -66,12 +69,13 @@ class Spinner:
         self.exit()
         if exception is not None:
             return False
+        return True
 
 
 def set_proxy_environment_variables():
     proxies = urllib.request.getproxies()
-    http_proxy = proxies.get('http')
-    https_proxy = proxies.get('https')
+    http_proxy = proxies.get("http")
+    https_proxy = proxies.get("https")
 
     if http_proxy is not None and http_proxy != "":
         os.environ["HTTP_PROXY"] = http_proxy
@@ -87,9 +91,7 @@ def create_client(openai_key, http_proxy=None):
         base_url=base_url,
         api_key=openai_key,
         http_client=httpx.Client(
-            base_url=base_url,
-            follow_redirects=True,
-            proxy=http_proxy
+            base_url=base_url, follow_redirects=True, proxy=http_proxy
         ),
     )
     return client
@@ -99,42 +101,41 @@ def get_completion(input_string, http_proxy=None):
     client = create_client(openai_key, http_proxy)
     completion_text = None
     completion = client.chat.completions.create(
-      model=default_model,
-      messages=[
-        {"role": "system", "content": default_system_prompt },
-        {"role": "user", "content": "{}".format(input_string)}
-      ]
+        model=default_model,
+        messages=[
+            {"role": "system", "content": default_system_prompt},
+            {"role": "user", "content": "{}".format(input_string)},
+        ],
     )
     if completion.choices[0].text:
         completion_text = completion.choices[0].text
     elif completion.choices[0].message:
         completion_text = completion.choices[0].message.content
     else:
-        print("Something went wrong, here is the response: {} {}".format(
-            os.linesep,
-            completion
-            ))
+        print(
+            "Something went wrong, here is the response: {} {}".format(
+                os.linesep, completion
+            )
+        )
         completion_text = None
     return completion_text
 
 
 def get_completion_streamed(input_string, http_proxy=None):
     client = create_client(openai_key, http_proxy)
-    completion_text = None
 
     spinner = Spinner()
     spinner.enter()
     is_spinner_enabled = True
 
     completion = client.chat.completions.create(
-      model=default_model,
-      messages=[
-        {"role": "system", "content": default_system_prompt },
-        {"role": "user", "content": "{}".format(input_string)}
-      ],
-      stream=True
-      )
-
+        model=default_model,
+        messages=[
+            {"role": "system", "content": default_system_prompt},
+            {"role": "user", "content": "{}".format(input_string)},
+        ],
+        stream=True,
+    )
 
     for response in completion:
         if is_spinner_enabled:
@@ -157,28 +158,18 @@ def main():
     if arg_length <= 1:
         usage()
     arg_string = " ".join(sys.argv[1:])
-    arg_string = "{}{}{}".format(
-                template,
-                os.linesep*2,
-                arg_string
-            )
+    arg_string = "{}{}{}".format(template, os.linesep * 2, arg_string)
 
     http_proxy = set_proxy_environment_variables()[0]
     if http_proxy:
         http_proxy = "http://{}".format(http_proxy)
     if not is_stream_completion:
         with Spinner():
-            text = get_completion(
-                    input_string=arg_string,
-                    http_proxy=http_proxy
-                    )
-        print(text.encode('utf-8').decode('unicode_escape'))
+            text = get_completion(input_string=arg_string, http_proxy=http_proxy)
+        print(text.encode("utf-8").decode("unicode_escape"))
         print("")
     else:
-        get_completion_streamed(
-                    input_string=arg_string,
-                    http_proxy=http_proxy
-                    )
+        get_completion_streamed(input_string=arg_string, http_proxy=http_proxy)
 
 
 if __name__ == "__main__":

@@ -31,7 +31,3 @@ export HTTPS_PROXY=""
 export OPENAI_KEY="Your OpenAI Key"
 ./howto download an entire directory recursively using wget?
 ```
-
-## Purchase Your API Key
-
-This is NOT an Ad, but I bought my keys [here](https://api.xty.app).
